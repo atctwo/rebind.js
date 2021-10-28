@@ -33,18 +33,35 @@ function clear_thing()
     rebind.clear("thing")
 }
 
+// you can also use a special key name called "any", which will be called whenever
+// any key is pressed or when any gamepad button is pressed
+
+function enable_any()
+{
+    rebind.bind("any-button", ["any"])
+    rebind.bind("any-ctrl", ["any"], {ctrl: true})
+}
+function disable_any()
+{
+    rebind.clear("any-button")
+    rebind.clear("any-ctrl")
+}
+
 // register a callback that is called when an action occurs (ie: when any key
 // bound to that action is pressed)
 // you can register several callbacks to one action
 // (but you can't de-register callbacks yet)
-rebind.on("move-left", (event_type, event) => {console.log("Move left", event_type)})
-rebind.on("move-right", (event_type, event) => {console.log("Move right", event_type)})
-rebind.on("thing", (event_type, event) => {if (event_type == "keydown") console.log("Thing Function 1")})
-rebind.on("thing", (event_type, event) => {if (event_type == "keydown") console.log("Thing Function 2")})
+rebind.on("move-left", (input_type, key_action, event) => {console.log("Move left", key_action)})
+rebind.on("move-right", (input_type, key_action, event) => {console.log("Move right", key_action)})
+rebind.on("thing", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Thing Function 1")})
+rebind.on("thing", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Thing Function 2")})
 
-rebind.on("z", (event_type, event) => {if (event_type == "keydown") console.log("Z pressed")})
-rebind.on("ctrl-z", (event_type, event) => {if (event_type == "keydown") console.log("Ctrl+Z pressed")})
-rebind.on("none-z", (event_type, event) => {if (event_type == "keydown") console.log("Just Z pressed")})
+rebind.on("z", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Z pressed")})
+rebind.on("ctrl-z", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Ctrl+Z pressed")})
+rebind.on("none-z", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Just Z pressed")})
+
+rebind.on("any-button", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Any button pressed")})
+rebind.on("any-ctrl", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Any button + ctrl pressed")})
 
 // remove any keybindings bound to an action
 // rebind.clear("move-right")

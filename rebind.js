@@ -25,12 +25,12 @@ class Rebind
 
         document.addEventListener("keydown", ((event) => {
             //event.preventDefault()
-            this.#handle_keydown(event, "keydown")
+            this.#handle_keydown(event, "pressed")
         }).bind(this))
 
         document.addEventListener("keyup", ((event) => {
             //event.preventDefault()
-            this.#handle_keydown(event, "keyup")
+            this.#handle_keydown(event, "released")
         }).bind(this))
 
         window.addEventListener("gamepadconnected", (function(e) { this.#gamepadHandler(e, true); }).bind(this), false);
@@ -56,6 +56,11 @@ class Rebind
             // if the action isn't already in the actions array
             if (!this.keydown_actions[input].some(e => e.action === action))
             {
+
+                // determine input type
+                var input_type = "key";
+                if (action.startsWith("gp-b")) input_type = "gamepad_button";
+                else if (action.startsWith("gp-a")) input_type = "gamepad_axes";
                 
                 // add the action to the keydown thing
                 this.keydown_actions[input].push({
@@ -64,7 +69,7 @@ class Rebind
                     shift: !!settings.shift,
                     alt: !!settings.alt,
                     none: !!settings.none,
-                    gamepad: false
+                    input_type: input_type
                 })
 
             }
@@ -141,36 +146,48 @@ class Rebind
     poll_gamepad()
     {
         var gamepads = navigator.getGamepads();
-        for (var gamepad of gamepads)
+        for (var gamepad of gamepads) // for each connected gamepad
         {
+            // the list returned by navigator.getGamepads() can contain null values.
+            // this checks if the list element is null, or if it's an actual gamepad
             if (gamepad)
             {
-                // console.log(`polling gamepad ${gamepad}`)
+                // iterate over each gamepad button
                 for (var i = 0; i < gamepad.buttons.length; i++)
                 {
                     var btn = gamepad.buttons[i];
-                    // console.log(`button ${i}: ${btn.pressed}`)
-
                     var input = "gp-b" + i.toString()
                     
                     if (btn.pressed && (input in this.keydown_actions))
                     {
-                    
-                        var actions = this.keydown_actions[input];
-                        actions.forEach((action => {
-
-                            // if there is a function registered for this action, call it
-                            if (action.action in this.action_functions) this.action_functions[action.action].forEach(((func) => {
-                                func("gamepad-button", gamepad);
-                            }).bind(this));
-
-                        }).bind(this))
-
+                        this.#process_actions(input, "pressed", gamepad)
                     }
 
                 }
             }
         }
+    }
+
+    #process_actions(input, key_action, event)
+    {
+        var actions = this.keydown_actions[input];
+        actions.forEach((action => {
+
+            // check the action conditions
+            if (action.input_type === "key")
+            {
+                if (action.ctrl && !event.ctrlKey) return;
+                if (action.alt && !event.altKey) return;
+                if (action.shift && !event.shiftKey) return;
+                if (action.none && (event.ctrlKey || event.altKey || event.shiftKey)) return;
+            }
+
+            // if there is a function registered for this action, call it
+            if (action.action in this.action_functions) this.action_functions[action.action].forEach(((func) => {
+                func(action.input_type, key_action, event);
+            }).bind(this));
+
+        }).bind(this))
     }
 
     /**
@@ -181,25 +198,11 @@ class Rebind
      */
     #handle_keydown(event, key_action)
     {
-        // get actions for the keydown event
-        if (event.key in this.keydown_actions)
-        {
-            var actions = this.keydown_actions[event.key];
-            actions.forEach((action => {
+        // if the key name (input) has an action bound to it
+        if (event.key in this.keydown_actions) this.#process_actions(event.key, key_action, event)
 
-                // check the action conditions
-                if (action.ctrl && !event.ctrlKey) return;
-                if (action.alt && !event.altKey) return;
-                if (action.shift && !event.shiftKey) return;
-                if (action.none && (event.ctrlKey || event.altKey || event.shiftKey)) return;
-
-                // if there is a function registered for this action, call it
-                if (action.action in this.action_functions) this.action_functions[action.action].forEach(((func) => {
-                    func(key_action, event);
-                }).bind(this));
-
-            }).bind(this))
-        }
+        // handle 'any' key
+        if ("any" in this.keydown_actions) this.#process_actions("any", key_action, event)
     }
 
     /**
