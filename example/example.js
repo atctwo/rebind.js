@@ -69,6 +69,28 @@ rebind.on("any-ctrl", (input_type, key_action, event) => {if (key_action == "pre
 // remove a specific keybind
 // rebind.remove("move-left", ["a"])
 
+// you can set callback registrations to "expire", so they will only work a set number of times.  to do this,
+// you can pass a settings object to rebind.on(), with an expiry key.  if expiry = 5, the callback will only
+// be called 5 times before it is deregistered.
+// keep in mind that the expiry counter will go down on both press and release callbacks!
+
+rebind.bind("expiry", ["e"])
+
+function register_expiry()
+{
+    console.log("registered expiry callback with a lifetime of 5 calls")
+    rebind.on("expiry", (input_type, key_action, event, func) => {
+
+        // note the 4th optional argument passed to the callback.  func is the internal store of the callback and it's settings.
+        // you can get the options passed to the callback using this parameter (which can be changed over time by rebind.js), as 
+        // shown below:
+        console.log(`expiry callback, ${func.expiry} calls left`)
+
+    }, {
+        expiry: 5
+    })
+}
+
 rebind.bind("move-left", ["gp-b14"])
 rebind.bind("move-right", ["gp-b15"])
 

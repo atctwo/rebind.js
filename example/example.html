@@ -12,7 +12,7 @@
 <body>
     <h1>rebind.js example</h1>
 
-    <p>Open DevTools to look at the console log</p>
+    <p>Open DevTools to look at the console log<br>See example.js to see what each Rebind.js method does</p>
 
     <table>
         <tr>
@@ -44,10 +44,13 @@
                 <span>from action "thing"</span>
             </td>
         </tr>
-    </table>
+    </table><br>
     
     <button onclick="clear_thing()">Clear all bindings for action "thing"</button><br>
     <button onclick="enable_any()">Enable Any Button</button>
     <button onclick="disable_any()">Disable Any Button</button>
+    <span>when enabled, press literally any key</span><br>
+    <button onclick="register_expiry()">Register Expiry Callback</button>
+    <span>bound to the 'e' key by default</span>
 </body>
 </html>

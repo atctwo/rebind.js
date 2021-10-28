@@ -6,6 +6,7 @@
  * @param {string} key_action whether the key or button was "pressed" or "released"
  * @param {KeyboardEvent} event [keyboard only] the event passed from keydown or keyup
  * @param {Gamepad} gamepad [gamepad only] the gamepad object that caused the input event
+ * @param {action_occurrance} func the callback itself is passed to itself.  this can be used to get things like expiry
  */
 
 
@@ -135,13 +136,16 @@ class Rebind
      * @param {string} action the action name
      * @param {action_occurrance} func a callback to call whenever the action occurs
      */
-    on(action, func)
+    on(action, func, settings={})
     {
         // if the action function object has no array for an action, create one
         if (!(action in this.action_functions)) this.action_functions[action] = []
 
         // add the function to the action function array
-        this.action_functions[action].push(func)
+        this.action_functions[action].push({
+            func: func,
+            expiry: settings.expiry || 0
+        })
     }
 
     poll_gamepad()
@@ -184,8 +188,22 @@ class Rebind
             }
 
             // if there is a function registered for this action, call it
-            if (action.action in this.action_functions) this.action_functions[action.action].forEach(((func) => {
-                func(action.input_type, key_action, event);
+            if (action.action in this.action_functions) this.action_functions[action.action].forEach(((func, i, arr) => {
+
+                // call the callback
+                func.func(action.input_type, key_action, event, func);
+
+                // handle callback expiry
+                if (func.expiry > 0)
+                {
+                    var expiry = func.expiry -= 1;
+                    if (expiry == 0) 
+                    {
+                        console.log(`${action.action} callback ${i} expired`)
+                        arr.splice(i, 1)
+                    }
+                }
+
             }).bind(this));
 
         }).bind(this))
