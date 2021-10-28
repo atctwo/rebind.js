@@ -51,7 +51,9 @@ function disable_any()
 // bound to that action is pressed)
 // you can register several callbacks to one action
 // (but you can't de-register callbacks yet)
-rebind.on("move-left", (input_type, key_action, event) => {console.log("Move left", key_action)})
+rebind.on("move-left", (input_type, key_action, event) => {console.log("Move left", key_action)}, {
+    frequency: "change"
+})
 rebind.on("move-right", (input_type, key_action, event) => {console.log("Move right", key_action)})
 rebind.on("thing", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Thing Function 1")})
 rebind.on("thing", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Thing Function 2")})

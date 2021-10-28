@@ -2,7 +2,7 @@
 /**
  * @callback action_occurrance
  * This describes the parameters of callbacks registered using rebind.on(), called when an action occurs.
- * @param {string} input_type the name of the input event that caused the action to occur (eg: "key", "gamepad-button", or "gamepad-axes")
+ * @param {string} input_type the name of the input event that caused the action to occur (eg: "key", "gamepad_button", or "gamepad_axes")
  * @param {string} key_action whether the key or button was "pressed" or "released"
  * @param {KeyboardEvent|Gamepad} event if the action was caused by a key, this should be the KeyboardEvent that caused it.  if the action was caused by a gamepad, this should be the Gamepad object for the gamepad that caused it
  * @param {action_occurrance} [func] the callback itself is passed to itself.  this can be used to get things like expiry
@@ -78,8 +78,8 @@ class Rebind
 
                 // determine input type
                 var input_type = "key";
-                if (action.startsWith("gp-b")) input_type = "gamepad_button";
-                else if (action.startsWith("gp-a")) input_type = "gamepad_axes";
+                if (input.startsWith("gp-b")) input_type = "gamepad_button";
+                else if (input.startsWith("gp-a")) input_type = "gamepad_axes";
                 
                 // add the action to the keydown thing
                 this.keydown_actions[input].push({
@@ -206,23 +206,33 @@ class Rebind
         {
             for (const [btn, pressed] of Object.entries(gp))
             {
-                if (index in this.last_gamepad_button_states)
-                {
-                    if (this.last_gamepad_button_states[index][btn] != pressed)
-                    {
-                        var input = "gp-b" + btn.toString();
-                        this.#process_actions(input, pressed ? "pressed" : "released", gamepads[index], "change")
-
-                        if (!(index in this.last_gamepad_button_states)) this.last_gamepad_button_states[index] = {}
-                        this.last_gamepad_button_states[index][btn] = pressed
-                    }
-                }
-                else
+                if (!(index in this.last_gamepad_button_states))
                 {
                     this.last_gamepad_button_states[index] = {}
+                    this.last_gamepad_button_states[index][btn] = "none"
+                }
+
+                // if the button state has changed since last time update() was run
+                if (this.last_gamepad_button_states[index][btn] != pressed)
+                {
+                    // process the action
+                    var input = "gp-b" + btn.toString();
+                    this.#process_actions(input, pressed ? "pressed" : "released", gamepads[index], "change")
+
+                    // if the button is released, process an action as if it were a continuous one
+                    // (because the continuous button code doesn't detect button releases)
+                    if (!pressed) this.#process_actions(input, "released", gamepads[index], "continuous")
+
+                    if (!(index in this.last_gamepad_button_states)) this.last_gamepad_button_states[index] = {}
                     this.last_gamepad_button_states[index][btn] = pressed
                 }
             }
+        }
+
+        // handle continuous key events
+        for (const [key, state] of Object.entries(this.key_states))
+        {
+            if (state.state == "pressed") this.#process_actions(key, "pressed", state.event, "continuous")
         }
     }
 
@@ -264,6 +274,36 @@ class Rebind
                 // if there is a function registered for this action, call it
                 if (action.action in this.action_functions) this.action_functions[action.action].forEach(((func, i, arr) => {
 
+                    // check the action frequency
+                    // console.log(action.input_type, func.frequency, context)
+
+                    // if the callback context isn't defnied (like "default" or "blah")
+                    if (func.frequency != "continuous" && func.frequency != "change" && func.frequency != "repeat")
+                    {
+                        if (action.input_type == "gamepad_button" && context != "change") return;
+                        if (action.input_type == "key" && context != "repeat") return; 
+                    }
+                    else
+                    {
+                        // if the context is a defined one and it is repeat
+                        if (func.frequency == "repeat")
+                        {
+                            
+                            // if the action is caused by a gamepad input, and the context is a button state change
+                            if (action.input_type == "gamepad_button") 
+                            {
+                                if (context != "change") return;
+                            }
+
+                            // return if the context isn't the same as the callbacks
+                            else if (func.frequency != context) return;
+
+                        }
+
+                        // return if the context isn't the same as the callbacks
+                        else if (func.frequency != context) return;
+                    }
+
                     // call the callback
                     func.func(action.input_type, key_action, event, func);
 
@@ -292,8 +332,27 @@ class Rebind
      */
     #handle_keydown(event, key_action)
     {
+        // handle key state change
+        if (!(event.key in this.key_states)) this.key_states[event.key] = {
+            state: "none",
+            event: event
+        }
+
+        if (this.key_states[event.key].state != key_action)
+        {
+            // process change callbacks
+            this.#process_actions(event.key, key_action, event, "change")
+
+            // if the key was released, process continuous callbacks
+            // (the code for polling key states for continuous callbacks can't see key releases)
+            if (key_action == "released") this.#process_actions(event.key, key_action, event, "continuous")
+        }
+
         // store the key state
-        this.key_states[event.key] = key_action;
+        this.key_states[event.key] = {
+            state: key_action,
+            event: event
+        }
 
         // if the key name (input) has an action bound to it
         if (event.key in this.keydown_actions) this.#process_actions(event.key, key_action, event, "repeat")
@@ -317,6 +376,8 @@ class Rebind
 
             // save the gamepad
             this.connected_gamepads[gamepad.index] = gamepad;
+            if (!(gamepad.index in this.gamepad_button_states)) this.gamepad_button_states[gamepad.index] = {}
+            if (!(gamepad.index in this.last_gamepad_button_states)) this.last_gamepad_button_states[gamepad.index] = {}
 
             // iterate over each gamepad button
             for (var i = 0; i < gamepad.buttons.length; i++)
@@ -326,12 +387,10 @@ class Rebind
                 var input = "gp-b" + i.toString();
 
                 // save gamepad button state
-                if (!(gamepad.index in this.gamepad_button_states)) this.gamepad_button_states[gamepad.index] = {}
                 this.gamepad_button_states[gamepad.index][i] = btn.pressed
 
                 // save gamepad button state
-                if (!(gamepad.index in this.last_gamepad_button_states)) this.last_gamepad_button_states[gamepad.index] = {}
-                this.last_gamepad_button_states[gamepad.index][i] = btn.pressed
+                this.last_gamepad_button_states[gamepad.index][i] = btn.pressed? "none" : false
 
             }
             
