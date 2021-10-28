@@ -34,6 +34,12 @@ class Rebind
         // an object that stores the key state of each key (keys only exist in this object if they were pressed or released at some point)
         this.key_states = {}
 
+        // an object of objects that store the state of each button on each connected gamepad
+        this.gamepad_button_states = {}
+
+        // same as gamepad_button_states, but used for detecting changes - pls use gamepad_button_states if you want to read them
+        this.last_gamepad_button_states = {}
+
         // keyevent and gamepad event listeners
 
         document.addEventListener("keydown", ((event) => {
@@ -179,7 +185,11 @@ class Rebind
                 {
                     // determine the input name based on the button id
                     var btn = gamepad.buttons[i];
-                    var input = "gp-b" + i.toString()
+                    var input = "gp-b" + i.toString();
+
+                    // save gamepad button state
+                    if (!(gamepad.index in this.gamepad_button_states)) this.gamepad_button_states[gamepad.index] = {}
+                    this.gamepad_button_states[gamepad.index][i] = btn.pressed
                     
                     // if the button is pressed, and there is at least one action bound to the input
                     if (btn.pressed && (input in this.keydown_actions))
@@ -187,6 +197,30 @@ class Rebind
                         this.#process_actions(input, "pressed", gamepad, "continuous")
                     }
 
+                }
+            }
+        }
+
+        // detect gamepad button changes
+        for (const [index, gp] of Object.entries(this.gamepad_button_states))
+        {
+            for (const [btn, pressed] of Object.entries(gp))
+            {
+                if (index in this.last_gamepad_button_states)
+                {
+                    if (this.last_gamepad_button_states[index][btn] != pressed)
+                    {
+                        var input = "gp-b" + btn.toString();
+                        this.#process_actions(input, pressed ? "pressed" : "released", gamepads[index], "change")
+
+                        if (!(index in this.last_gamepad_button_states)) this.last_gamepad_button_states[index] = {}
+                        this.last_gamepad_button_states[index][btn] = pressed
+                    }
+                }
+                else
+                {
+                    this.last_gamepad_button_states[index] = {}
+                    this.last_gamepad_button_states[index][btn] = pressed
                 }
             }
         }
@@ -214,37 +248,40 @@ class Rebind
     #process_actions(input, key_action, event, context)
     {
         var actions = this.keydown_actions[input];
-        actions.forEach((action => {
+        if (actions)
+        {
+            actions.forEach((action => {
 
-            // check the action conditions
-            if (action.input_type === "key")
-            {
-                if (action.ctrl && !event.ctrlKey) return;
-                if (action.alt && !event.altKey) return;
-                if (action.shift && !event.shiftKey) return;
-                if (action.none && (event.ctrlKey || event.altKey || event.shiftKey)) return;
-            }
-
-            // if there is a function registered for this action, call it
-            if (action.action in this.action_functions) this.action_functions[action.action].forEach(((func, i, arr) => {
-
-                // call the callback
-                func.func(action.input_type, key_action, event, func);
-
-                // handle callback expiry
-                if (func.expiry > 0)
+                // check the action conditions
+                if (action.input_type === "key")
                 {
-                    var expiry = func.expiry -= 1;
-                    if (expiry == 0) 
-                    {
-                        console.log(`${action.action} callback ${i} expired`)
-                        arr.splice(i, 1)
-                    }
+                    if (action.ctrl && !event.ctrlKey) return;
+                    if (action.alt && !event.altKey) return;
+                    if (action.shift && !event.shiftKey) return;
+                    if (action.none && (event.ctrlKey || event.altKey || event.shiftKey)) return;
                 }
 
-            }).bind(this));
+                // if there is a function registered for this action, call it
+                if (action.action in this.action_functions) this.action_functions[action.action].forEach(((func, i, arr) => {
 
-        }).bind(this))
+                    // call the callback
+                    func.func(action.input_type, key_action, event, func);
+
+                    // handle callback expiry
+                    if (func.expiry > 0)
+                    {
+                        var expiry = func.expiry -= 1;
+                        if (expiry == 0) 
+                        {
+                            console.log(`${action.action} callback ${i} expired`)
+                            arr.splice(i, 1)
+                        }
+                    }
+
+                }).bind(this));
+
+            }).bind(this))
+        }
     }
 
     /**
@@ -277,9 +314,30 @@ class Rebind
         // gamepad === navigator.getGamepads()[gamepad.index]
       
         if (connecting) {
-          this.connected_gamepads[gamepad.index] = gamepad;
+
+            // save the gamepad
+            this.connected_gamepads[gamepad.index] = gamepad;
+
+            // iterate over each gamepad button
+            for (var i = 0; i < gamepad.buttons.length; i++)
+            {
+                // determine the input name based on the button id
+                var btn = gamepad.buttons[i];
+                var input = "gp-b" + i.toString();
+
+                // save gamepad button state
+                if (!(gamepad.index in this.gamepad_button_states)) this.gamepad_button_states[gamepad.index] = {}
+                this.gamepad_button_states[gamepad.index][i] = btn.pressed
+
+                // save gamepad button state
+                if (!(gamepad.index in this.last_gamepad_button_states)) this.last_gamepad_button_states[gamepad.index] = {}
+                this.last_gamepad_button_states[gamepad.index][i] = btn.pressed
+
+            }
+            
+
         } else {
-          delete this.connected_gamepads[gamepad.index];
+            delete this.connected_gamepads[gamepad.index];
         }
       }
 }

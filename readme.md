@@ -13,12 +13,12 @@ rebind.bind("move-left", ["a", "ArrowLeft", "Left"])
 rebind.bind("move-right", ["d", "ArrowRight", "Right"])
 
 // register some callbacks to an action
-rebind.on("move-left", (event_type, event) => {
-    console.log("Move left", event_type)
+rebind.on("move-left", (input_type, key_action, event) => {
+    console.log("Move left", key_action)
 })
 
-rebind.on("move-right", (event_type, event) => {
-    console.log("Move right", event_type)
+rebind.on("move-right", (input_type, key_action, event) => {
+    console.log("Move right", key_action)
 })
 
 // remove some keybindings
