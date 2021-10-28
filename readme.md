@@ -65,6 +65,12 @@ rebind.bind("move-left-faster", ["a", "ArrowLeft", "Left"], {
 
 The settings object can have `ctrl`, `shift`, `alt`, or `none` as keys, and each of them are false by default.  Any that are set to true must be pressed as part of the input to make the action occur.  If `none` is set to true, there have to be no modifier keys pressed in order to make the action occur.  If `none` is false, and no other modifier key settings are true, the action will occur no matter what modifier keys are pressed.
 
+You can also bind actions to a virtual key called `any`, which will occur whenever any key or gamepad button is pressed or released.
+
+```js
+rebind.bind("any-button", ["any"])
+```
+
 todo: how to bind to gamepad buttons and axes
 
 ## Registering Callbacks to Actions
@@ -72,22 +78,23 @@ todo: how to bind to gamepad buttons and axes
 When an action "occurs" due to any input bound to the action, each callback registered to the action will be called.  To register a callback, use the `rebind.on()` method.  You can register any number of callbacks to one action (although you can't unregister them yet).  Make sure the action parameter is the same string used to bind inputs to the action.
 
 ```js
-rebind.on("move-left", (event_type, event) => {
-    console.log("Move left", event_type)
+rebind.on("move-left", (input_type, key_action, event) => {
+    console.log("Move left", key_action)
 })
 
-rebind.on("move-right", (event_type, event) => {
-    console.log("Move right", event_type)
+rebind.on("move-right", (input_type, key_action, event) => {
+    console.log("Move right", key_action)
 })
 ```
 
-The first parameter of the callback, `event_type`, tells the callback which type of input caused the action to occur.  This can be:
-- `keydown`
-- `keyup`
+The first parameter of the callback, `input_type`, tells the callback which type of input caused the action to occur.  This can be:
+- `key`
 - `gamepad_button`
-- `gamepad_axis`
+- `gamepad_axes`
 
-If the input was from a keyboard, the second parameter will be the KeyboardEvent that caused the internal keydown or keyup event listener to be executed.  If the input was from a gamepad, the second parameter will be the Gamepad object that represents the gamepad that made the input.
+The second parameter, `key_action`, will either be `"pressed"` or `"released"`.
+
+If the input was from a keyboard, the third parameter will be the KeyboardEvent that caused the internal keydown or keyup event listener to be executed.  If the input was from a gamepad, the second parameter will be the Gamepad object that represents the gamepad that made the input.
 
 That's all you need to do to bind an input to an action!
 

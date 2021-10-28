@@ -2,7 +2,8 @@
 /**
  * @callback action_occurrance
  * This describes the parameters of callbacks registered using rebind.on(), called when an action occurs.
- * @param {string} event_name the name of the input event that caused the action to occur (eg: "keydown", "gp-b0", "gp-a0")
+ * @param {string} input_type the name of the input event that caused the action to occur (eg: "key", "gamepad-button", or "gamepad-axes")
+ * @param {string} key_action whether the key or button was "pressed" or "released"
  * @param {KeyboardEvent} event [keyboard only] the event passed from keydown or keyup
  * @param {Gamepad} gamepad [gamepad only] the gamepad object that caused the input event
  */
