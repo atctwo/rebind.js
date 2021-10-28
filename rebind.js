@@ -4,9 +4,8 @@
  * This describes the parameters of callbacks registered using rebind.on(), called when an action occurs.
  * @param {string} input_type the name of the input event that caused the action to occur (eg: "key", "gamepad-button", or "gamepad-axes")
  * @param {string} key_action whether the key or button was "pressed" or "released"
- * @param {KeyboardEvent} event [keyboard only] the event passed from keydown or keyup
- * @param {Gamepad} gamepad [gamepad only] the gamepad object that caused the input event
- * @param {action_occurrance} func the callback itself is passed to itself.  this can be used to get things like expiry
+ * @param {KeyboardEvent|Gamepad} event if the action was caused by a key, this should be the KeyboardEvent that caused it.  if the action was caused by a gamepad, this should be the Gamepad object for the gamepad that caused it
+ * @param {action_occurrance} [func] the callback itself is passed to itself.  this can be used to get things like expiry
  */
 
 
@@ -21,9 +20,21 @@ class Rebind
      */
     constructor()
     {
+        // object for storing bound inputs and callbacks
+
+        // an object where each key represents an input, and each value is an array of actions bound to it
         this.keydown_actions = {}
+        
+        // an object where each key represents an action, and each value is an array of callback object to be called when the action occurs
         this.action_functions = {}
+
+        // an object that stores each connected gamepad
         this.connected_gamepads = {}
+
+        // an object that stores the key state of each key (keys only exist in this object if they were pressed or released at some point)
+        this.key_states = {}
+
+        // keyevent and gamepad event listeners
 
         document.addEventListener("keydown", ((event) => {
             //event.preventDefault()
@@ -144,12 +155,18 @@ class Rebind
         // add the function to the action function array
         this.action_functions[action].push({
             func: func,
-            expiry: settings.expiry || 0
+            expiry: settings.expiry || 0,
+            frequency: settings.frequency || "default"
         })
     }
 
-    poll_gamepad()
+    /**
+     * @summary Polls the gamepad and handles any "continuous" or "change" keyboard events
+     */
+    update()
     {
+        // poll gamepad
+
         var gamepads = navigator.getGamepads();
         for (var gamepad of gamepads) // for each connected gamepad
         {
@@ -160,12 +177,14 @@ class Rebind
                 // iterate over each gamepad button
                 for (var i = 0; i < gamepad.buttons.length; i++)
                 {
+                    // determine the input name based on the button id
                     var btn = gamepad.buttons[i];
                     var input = "gp-b" + i.toString()
                     
+                    // if the button is pressed, and there is at least one action bound to the input
                     if (btn.pressed && (input in this.keydown_actions))
                     {
-                        this.#process_actions(input, "pressed", gamepad)
+                        this.#process_actions(input, "pressed", gamepad, "continuous")
                     }
 
                 }
@@ -173,7 +192,26 @@ class Rebind
         }
     }
 
-    #process_actions(input, key_action, event)
+    /**
+     * @summary Calls each callback registered for a given input
+     * 
+     * This method will check to see if there are any callbacks registered for a given input.  If there is, it will call
+     * them.  When they are called, this method will check that the conditions for the callback to be called are right
+     * (eg: that the control key is pressed for an action the requires it to be pressed).  It also handles callback 
+     * expiry.
+     * 
+     * The context parameter should contain a string that describes how often this method is called from where it is called.
+     * It should be one of:
+     *  - "continuous": called every frame (for example, in the update() method)
+     *  - "change": called when a key or button state changes from pressed to released
+     *  - "repeat": called by a keyboard event listener (hence will be called every key repeat)
+     * 
+     * @param {string} input the name of the input (like "a" or "gp-b4")
+     * @param {string} key_action whether the key / button was "pressed" or "released"
+     * @param {KeyboardEvent|Gamepad} event if the action was caused by a key, this should be the KeyboardEvent that caused it.  if the action was caused by a gamepad, this should be the Gamepad object for the gamepad that caused it
+     * @param {string} context where the method was called from (specifically how often this method is called from the place)
+     */
+    #process_actions(input, key_action, event, context)
     {
         var actions = this.keydown_actions[input];
         actions.forEach((action => {
@@ -217,11 +255,14 @@ class Rebind
      */
     #handle_keydown(event, key_action)
     {
+        // store the key state
+        this.key_states[event.key] = key_action;
+
         // if the key name (input) has an action bound to it
-        if (event.key in this.keydown_actions) this.#process_actions(event.key, key_action, event)
+        if (event.key in this.keydown_actions) this.#process_actions(event.key, key_action, event, "repeat")
 
         // handle 'any' key
-        if ("any" in this.keydown_actions) this.#process_actions("any", key_action, event)
+        if ("any" in this.keydown_actions) this.#process_actions("any", key_action, event, "repeat")
     }
 
     /**

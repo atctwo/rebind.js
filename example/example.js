@@ -94,10 +94,10 @@ function register_expiry()
 rebind.bind("move-left", ["gp-b14"])
 rebind.bind("move-right", ["gp-b15"])
 
-function poll_gamepad()
+function update()
 {
-    rebind.poll_gamepad()
-    requestAnimationFrame(poll_gamepad)
+    rebind.update()
+    requestAnimationFrame(update)
 }
-requestAnimationFrame(poll_gamepad)
+requestAnimationFrame(update)
 
