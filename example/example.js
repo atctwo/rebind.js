@@ -6,6 +6,7 @@ rebind = new Rebind()
 // the action will "occur" when any of the bound keys are pressed
 rebind.bind("move-left", ["a", "ArrowLeft", "Left"])
 rebind.bind("move-right", ["d", "ArrowRight", "Right"])
+rebind.bind("print-params", ["p", "gp-b3"])
 
 // a settings object can be passed which defines what modifier keys need to
 // be pressed for the action to occur.  you can require ctrl, shift, or
@@ -51,19 +52,21 @@ function disable_any()
 // bound to that action is pressed)
 // you can register several callbacks to one action
 // (but you can't de-register callbacks yet)
-rebind.on("move-left", (input_type, key_action, event) => {console.log("Move left", key_action)}, {
-    frequency: "change"
+rebind.on("move-left", (params) => {console.log("Move left", params.key_action)})
+rebind.on("move-right", (params) => {console.log("Move right", params.key_action)})
+rebind.on("thing", (params) => {if (params.key_action == "pressed") console.log("Thing Function 1")})
+rebind.on("thing", (params) => {if (params.key_action == "pressed") console.log("Thing Function 2")})
+
+rebind.on("print-params", (params) => {
+    console.log(params)
 })
-rebind.on("move-right", (input_type, key_action, event) => {console.log("Move right", key_action)})
-rebind.on("thing", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Thing Function 1")})
-rebind.on("thing", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Thing Function 2")})
 
-rebind.on("z", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Z pressed")})
-rebind.on("ctrl-z", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Ctrl+Z pressed")})
-rebind.on("none-z", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Just Z pressed")})
+rebind.on("z", (params) => {if (params.key_action == "pressed") console.log("Z pressed")})
+rebind.on("ctrl-z", (params) => {if (params.key_action == "pressed") console.log("Ctrl+Z pressed")})
+rebind.on("none-z", (params) => {if (params.key_action == "pressed") console.log("Just Z pressed")})
 
-rebind.on("any-button", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Any button pressed")})
-rebind.on("any-ctrl", (input_type, key_action, event) => {if (key_action == "pressed") console.log("Any button + ctrl pressed")})
+rebind.on("any-button", (params) => {if (params.key_action == "pressed") console.log("Any button pressed")})
+rebind.on("any-ctrl", (params) => {if (params.key_action == "pressed") console.log("Any button + ctrl pressed")})
 
 // remove any keybindings bound to an action
 // rebind.clear("move-right")
@@ -81,12 +84,10 @@ rebind.bind("expiry", ["e"])
 function register_expiry()
 {
     console.log("registered expiry callback with a lifetime of 5 calls")
-    rebind.on("expiry", (input_type, key_action, event, func) => {
+    rebind.on("expiry", (params) => {
 
-        // note the 4th optional argument passed to the callback.  func is the internal store of the callback and it's settings.
-        // you can get the options passed to the callback using this parameter (which can be changed over time by rebind.js), as 
-        // shown below:
-        console.log(`expiry callback, ${func.expiry} calls left`)
+        // the number of calls left is passed as the expiry attribute of params
+        console.log(`expiry callback, ${params.expiry} calls left`)
 
     }, {
         expiry: 5

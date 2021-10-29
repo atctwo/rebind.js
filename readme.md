@@ -13,12 +13,11 @@ rebind.bind("move-left", ["a", "ArrowLeft", "Left"])
 rebind.bind("move-right", ["d", "ArrowRight", "Right"])
 
 // register some callbacks to an action
-rebind.on("move-left", (input_type, key_action, event) => {
-    console.log("Move left", key_action)
+rebind.on("move-left", (params) => {
+    console.log("Move left", params.key_action)
 })
-
-rebind.on("move-right", (input_type, key_action, event) => {
-    console.log("Move right", key_action)
+rebind.on("move-right", (params) => {
+    console.log("Move right", params.key_action)
 })
 
 // remove some keybindings
@@ -59,7 +58,7 @@ Optionally, you can pass a settings object as a third argument to specify any mo
 
 ```js
 rebind.bind("move-left-faster", ["a", "ArrowLeft", "Left"], {
-    ctrl: true
+    shift: true
 })
 ```
 
@@ -78,50 +77,33 @@ todo: how to bind to gamepad buttons and axes
 When an action "occurs" due to any input bound to the action, each callback registered to the action will be called.  To register a callback, use the `rebind.on()` method.  You can register any number of callbacks to one action (although you can't unregister them yet, except when setting an [expiry](#expiry)).  Make sure the action parameter is the same string used to bind inputs to the action.
 
 ```js
-rebind.on("move-left", (input_type, key_action, event) => {
-    console.log("Move left", key_action)
+rebind.on("move-left", (params) => {
+    console.log("Move left", params.key_action)
 })
 
-rebind.on("move-right", (input_type, key_action, event) => {
-    console.log("Move right", key_action)
-})
-```
-
-The first parameter of the callback, `input_type`, tells the callback which type of input caused the action to occur.  This can be:
-- `key`
-- `gamepad_button`
-- `gamepad_axes`
-
-The second parameter, `key_action`, will either be `"pressed"` or `"released"`.
-
-If the input was from a keyboard, the third parameter will be the KeyboardEvent that caused the internal keydown or keyup event listener to be executed.  If the input was from a gamepad, the second parameter will be the Gamepad object that represents the gamepad that made the input.
-
-That's all you need to do to bind an input to an action!
-
-### The 4th Parameter: func
-
-There is an optional 4th parameter, `func`, which is the object that is internally used to store the callback itself, and all of it's settings (which are described below).  It can be used like this:
-
-```js
-rebind.on("expiry", (input_type, key_action, event, func) => {
-    console.log(func)
+rebind.on("move-right", (params) => {
+    console.log("Move right", params.key_action)
 })
 ```
 
-This object currently has the following attributes:
+The parameter passed to the callback is an object with lots of parameters, which are described in this table:
 
-| Attribute Name | Description                                                                  |
-|----------------|------------------------------------------------------------------------------|
-| `func`         | the callback function itself                                                 |
-| `expiry`       | how many more calls the callback has left (see [Callback Expiry](#expiry))   |
+| `params` attribute    | description                                                                                                                       |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `input_type`          | whether the input was caused by a keyboard `"key"`, `"gamepad_button"`, or `"gamepad_axes"`                                       |
+| `key_action`          | whether the key or button was `"pressed"` or `"released"`                                                                         |
+| `event`               | if the action was caused by a keyboard key event, this will be the KeyboardEvent, otherwise it will be null                       |
+| `gamepad`             | if the action was caused by a gamepad, this will be the Gamepad that represents it, otherwise it will be null                     |
+| `expiry`              | if the callback has an expiry, this will be the number of calls the callback has left see [Callback Expiry](#expiry)              |
+| `frequency`           | how often the action is to be called (by default, this is "default")                                                              |
 
 ### <a name="expiry"></a>Callback Expiry
 
 When you register a callback, you can set an expiry, so that after a certain number of calls, the callback will be deregistered, and won't be called again (although you can always reregister it).  To set an expiry (and other settings), you can pass a settings object as a third parameter to `rebind.on()`, as shown below:
 
 ```js
-rebind.on("expiry", (input_type, key_action, event, func) => {
-    console.log(`expiry callback, ${func.expiry} calls left`)
+rebind.on("expiry", (params) => {
+    console.log(`expiry callback, ${params.expiry} calls left`)
 }, {
     expiry: 5
 })

@@ -2,10 +2,7 @@
 /**
  * @callback action_occurrance
  * This describes the parameters of callbacks registered using rebind.on(), called when an action occurs.
- * @param {string} input_type the name of the input event that caused the action to occur (eg: "key", "gamepad_button", or "gamepad_axes")
- * @param {string} key_action whether the key or button was "pressed" or "released"
- * @param {KeyboardEvent|Gamepad} event if the action was caused by a key, this should be the KeyboardEvent that caused it.  if the action was caused by a gamepad, this should be the Gamepad object for the gamepad that caused it
- * @param {action_occurrance} [func] the callback itself is passed to itself.  this can be used to get things like expiry
+ * @param {Object} param an object of parameters.  see readme.md for a description of each parameter
  */
 
 
@@ -305,7 +302,14 @@ class Rebind
                     }
 
                     // call the callback
-                    func.func(action.input_type, key_action, event, func);
+                    func.func({
+                        input_type: action.input_type, 
+                        key_action: key_action, 
+                        event: (action.input_type == "key") ?  event : null, 
+                        gamepad: (action.input_type != "key") ? event : null,
+                        expiry: func.expiry,
+                        frequency: func.frequency
+                    });
 
                     // handle callback expiry
                     if (func.expiry > 0)
