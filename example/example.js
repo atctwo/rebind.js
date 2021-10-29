@@ -16,6 +16,11 @@ rebind.bind(      "z", ["z"])
 rebind.bind("ctrl-z", ["z"], {ctrl: true})
 rebind.bind( "none-z", ["z"], {none: true})
 
+// to bind a gamepad button to an action, use the input string "gp-b<n>", where "<n>" is the id of the button you want to do the thing.
+// button ids are described at https://www.w3.org/TR/gamepad/#dfn-standard-gamepad
+rebind.bind("move-left", ["gp-b14"])
+rebind.bind("move-right", ["gp-b15"])
+
 // these are examples that are called by the buttons on example.html
 // they are supposed to show dynamic rebinding
 function bind_to_thing(char)
@@ -94,9 +99,7 @@ function register_expiry()
     })
 }
 
-rebind.bind("move-left", ["gp-b14"])
-rebind.bind("move-right", ["gp-b15"])
-
+// for gamepad input and continuous keyboard input to work, you need to call rebind.update() every frame
 function update()
 {
     rebind.update()

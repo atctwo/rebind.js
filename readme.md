@@ -9,8 +9,10 @@ This library can be used for detecting keyboard and gamepad input, binding input
 rebind = new Rebind()
 
 // bind some keyboard inputs to an action
-rebind.bind("move-left", ["a", "ArrowLeft", "Left"])
-rebind.bind("move-right", ["d", "ArrowRight", "Right"])
+// left  -> the 'a' key, the left arrow key, or the left dpad button
+// right -> the 'd' key, the right arrow key, or the right dpad button
+rebind.bind("move-left", ["a", "ArrowLeft", "Left", "gp-b14"])
+rebind.bind("move-right", ["d", "ArrowRight", "Right", "gp-b15"])
 
 // register some callbacks to an action
 rebind.on("move-left", (params) => {
@@ -43,18 +45,42 @@ Then, construct a Rebind object:
 rebind = new Rebind()
 ```
 
+## The update method
+
+Gamepad input, and continuous key callbacks, depend on the method `rebind.update()` being called as often as possible.  This method polls each gamepad button and handles calling continuous frequency callbacks.  One way to do this is to use [requestAnimationFrame](https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame), like this:
+
+```js
+function update()
+{
+    rebind.update()
+    requestAnimationFrame(update)
+}
+requestAnimationFrame(update)
+```
+
+If you just want to call a function every time a keyboard key repeats (which is the default frequency), you don't need to call `update()`.
+
 ## Binding Keys to Events
 
-To bind the keyboard arrow keys to actions to move something left or right, you could do this:
+To bind keyboard or gamepad inputs to an action, use the method `rebind.bind()`.  For example, to bind the keyboard arrow keys to actions to move something left or right, you could do this:
 
 ```js
 rebind.bind("move-left", ["a", "ArrowLeft", "Left"])
 rebind.bind("move-right", ["d", "ArrowRight", "Right"])
 ```
 
-The first argument is the name of the action as a string (it can be literally anything), and the second argument is an array of key names.  The key names can be anything that KeyboardEvent.key can be ([here's a list from MDN](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values)).
+(It says "Left" and "ArrowLeft" because old versions of Firefox used "Left", while most browsers nowdays use "ArrowLeft".)
 
-Optionally, you can pass a settings object as a third argument to specify any modifier keys that need to be pressed:
+Note that we define what inputs cause what actions, and what each action does separately.
+
+The first argument is the name of the action as a string (it can be literally anything), and the second argument is an array of input names.  The input names can be
+- a keyboard key
+- a gamepad button
+- a gamepad control stick
+
+### Binding Keys to keyboard keys
+
+You can bind actions to anything that KeyboardEvent.key can be ([here's a list from MDN](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values)).  Optionally, you can pass a settings object as a third argument to specify any modifier keys that need to be pressed:
 
 ```js
 rebind.bind("move-left-faster", ["a", "ArrowLeft", "Left"], {
@@ -70,7 +96,19 @@ You can also bind actions to a virtual key called `any`, which will occur whenev
 rebind.bind("any-button", ["any"])
 ```
 
-todo: how to bind to gamepad buttons and axes
+### Binding to Gamepad Buttons
+
+Binding gamepad butons to actions works the same way as binding keys, except the names are a bit different.  Because each controller type has a different name for each button, the Gamepad API gives each button a standard id instead of a name (so long as the gamepad layout can be represented using a "standard" mapping).  The mapping between button ids and the location of buttons on the controller is defined in the [Gamepad API Standard](https://www.w3.org/TR/gamepad/#dfn-standard-gamepad) (there's a nice diagram here which makes it visual).
+
+To bind a specific button to an action, use the input string `"gp-b<n>"`, where `<n>` is the id of the button you want to use.  For example, the "right button in the right cluster" (A on Nintendo, circle on PlayStation, B on Xbox), with a "standard" mapping, is id 1.  To bind an action to this button (and the enter key on the keyboard), you would call:
+
+```js
+rebind.bind("something", ["Enter", "gp-b1"]);
+```
+
+### Binding to Gamepad Control Sticks (axes)
+
+todo: how to bind to gamepad axes
 
 ## Registering Callbacks to Actions
 
@@ -111,6 +149,41 @@ rebind.on("expiry", (params) => {
 ```
 
 The expiry counter will decrement every time the callback is called, including when a key or button is pressed or released, at any callback frequency.
+
+### Callback frequency
+
+You can decide how often callbacks should be called when a key is pressed and held down and released.  When you register a callback, you can pass a settings object with a `frequency` attribute.
+
+```js
+rebind.on("something", (params) => {
+    console.log("something", params.key_action, params.frequency)
+}, {
+    frequency: "continuous"
+}
+})
+```
+
+The table below shows the possible frequencies for callbacks, how often they will be called when caused by a keyboard input, and how often they will be called when caused by a gamepad input.
+
+| frequency name    | keyboard frequency                                                                | gamepad frequency                                                         |
+|-------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| `"continuous"`    | every time `update()` is called (`key_action` == pressed), and on release         | every time `update()` is called (`key_action` == pressed), and on release |
+| `"change"`        | when the key is pressed or released                                               | when the button is pressed or released                                    |
+| `"repeat"`        | when the key is pressed, released, or repeats (based on OS key repeat settings)   | same as `"change"`                                                        |
+| anything else     | same as `"repeat"`                                                                | same as `"change"`                                                        |
+
+Here's more detail about what each frequency does:
+
+- `"continuous"`
+    - when the key or button is held down, the callback will be called (with `key_action` == "pressed") every time `rebind.update()` is called.
+    - when the key or button is released, the callback will be called with `key_action` == "released" once
+- `"change"`
+    - the callback will be called once when the key / button is pressed, and once when the key / button is released
+- `"repeat"`
+    - if the action was caused by a keyboard key, the callback will be called once on keypress, then will be called repeatedly at the key repeat rate set up by the OS (with `key_action` == "pressed").  when the key is released, the callback will be called once with `key_action` == "released".
+    - if the action was caused by a gamepad input, the frequency will be the same as if it were `"change"`
+- anything else (by default, frequency is `"default"`)
+    - the frequency will be the same as if it were set to `"repeat"` (hence it will act like `"change"` for gamepad inputs)
 
 ## Unbinding keys
 
