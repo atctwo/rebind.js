@@ -37,6 +37,12 @@ class Rebind
         // same as gamepad_button_states, but used for detecting changes - pls use gamepad_button_states if you want to read them
         this.last_gamepad_button_states = {}
 
+        // an object of arrays of values that store the most recent value for each gamepad axes
+        this.last_gamepad_axes = {};
+
+        // deadzone for gamepad axes released detection
+        this.release_deadzone = 0.1;
+
         // keyevent and gamepad event listeners
 
         document.addEventListener("keydown", ((event) => {
@@ -79,14 +85,30 @@ class Rebind
                 else if (input.startsWith("gp-a")) input_type = "gamepad_axes";
                 
                 // add the action to the keydown thing
-                this.keydown_actions[input].push({
+                var bind_settings = {
                     action: action,
                     ctrl: !!settings.ctrl,
                     shift: !!settings.shift,
                     alt: !!settings.alt,
                     none: !!settings.none,
                     input_type: input_type
-                })
+                }
+
+                // add axes settings
+                if (input_type == "gamepad_axes")
+                {
+                    if ("func" in settings) bind_settings.axes_function = settings.func
+                    else {
+                        bind_settings.deadzone = settings.deadzone || 0.1
+                        bind_settings.condition_x = settings.condition_x || "any"
+                        bind_settings.condition_y = settings.condition_y || "any"
+                    }
+
+                    if (input == "gp-a-right") bind_settings.axes = [2, 3]
+                    else this.bind.axes = [0, 1]
+                }
+
+                this.keydown_actions[input].push(bind_settings);
 
             }
 
@@ -195,6 +217,38 @@ class Rebind
                     }
 
                 }
+
+                // process gamepad axes
+                this.#process_actions("gp-a-left",  "pressed", gamepad, "continuous", [gamepad.axes[0], gamepad.axes[1]])
+                this.#process_actions("gp-a-right", "pressed", gamepad, "continuous", [gamepad.axes[2], gamepad.axes[3]])
+
+                if (gamepad.axes[0] != this.last_gamepad_axes[0] || gamepad.axes[1] != this.last_gamepad_axes[1]) 
+                {
+                    this.#process_actions("gp-a-left",  "pressed", gamepad, "change", [gamepad.axes[0], gamepad.axes[1]])
+                    this.last_gamepad_axes[0] = gamepad.axes[0];
+                    this.last_gamepad_axes[1] = gamepad.axes[1];
+
+                    if ( (gamepad.axes[0] < this.release_deadzone && gamepad.axes[0] > -this.release_deadzone) &&
+                         (gamepad.axes[1] < this.release_deadzone && gamepad.axes[1] > -this.release_deadzone) ) 
+                    {
+                        this.#process_actions("gp-a-left",  "released", gamepad, "change", [gamepad.axes[0], gamepad.axes[1]])
+                        this.#process_actions("gp-a-left",  "released", gamepad, "continuous", [gamepad.axes[0], gamepad.axes[1]])
+                    }
+                }
+
+                if (gamepad.axes[2] != this.last_gamepad_axes[2] || gamepad.axes[3] != this.last_gamepad_axes[3]) 
+                {
+                    this.#process_actions("gp-a-right", "pressed", gamepad, "change", [gamepad.axes[2], gamepad.axes[3]])
+                    this.last_gamepad_axes[2] = gamepad.axes[2];
+                    this.last_gamepad_axes[3] = gamepad.axes[3];
+
+                    if ( (gamepad.axes[2] < this.release_deadzone && gamepad.axes[2] > -this.release_deadzone) &&
+                         (gamepad.axes[3] < this.release_deadzone && gamepad.axes[3] > -this.release_deadzone) ) 
+                    {
+                        this.#process_actions("gp-a-right",  "released", gamepad, "change", [gamepad.axes[2], gamepad.axes[3]])
+                        this.#process_actions("gp-a-right",  "released", gamepad, "continuous", [gamepad.axes[2], gamepad.axes[3]])
+                    }
+                }
             }
         }
 
@@ -252,13 +306,13 @@ class Rebind
      * @param {KeyboardEvent|Gamepad} event if the action was caused by a key, this should be the KeyboardEvent that caused it.  if the action was caused by a gamepad, this should be the Gamepad object for the gamepad that caused it
      * @param {string} context where the method was called from (specifically how often this method is called from the place)
      */
-    #process_actions(input, key_action, event, context)
+    #process_actions(input, key_action, event, context, axes=[])
     {
         var actions = this.keydown_actions[input];
         if (actions)
         {
             actions.forEach((action => {
-
+                
                 // check the action conditions
                 if (action.input_type === "key")
                 {
@@ -277,6 +331,7 @@ class Rebind
                     // if the callback context isn't defnied (like "default" or "blah")
                     if (func.frequency != "continuous" && func.frequency != "change" && func.frequency != "repeat")
                     {
+                        if (action.input_type == "gamepad_axes" && context != "continuous") return;
                         if (action.input_type == "gamepad_button" && context != "change") return;
                         if (action.input_type == "key" && context != "repeat") return; 
                     }
@@ -286,10 +341,16 @@ class Rebind
                         if (func.frequency == "repeat")
                         {
                             
-                            // if the action is caused by a gamepad input, and the context is a button state change
+                            // if the action is caused by a gamepad input, and the context isn't a button state change
                             if (action.input_type == "gamepad_button") 
                             {
                                 if (context != "change") return;
+                            }
+
+                            // if the action is caused by a gamepad input, and the context isn't continuous
+                            if (action.input_type == "gamepad_axes") 
+                            {
+                                if (context != "continuous") return;
                             }
 
                             // return if the context isn't the same as the callbacks
@@ -301,15 +362,59 @@ class Rebind
                         else if (func.frequency != context) return;
                     }
 
+                    // handle axes conditions
+                    if (action.input_type == "gamepad_axes" && key_action != "released")
+                    {
+                        var conditions = [action.condition_x, action.condition_y]
+                        var either_failed = 0;
+                        for (var i = 0; i < 2; i++)
+                        {
+                            switch(conditions[i])
+                            {
+                                case "pos":
+                                    if (axes[i] < action.deadzone) return;
+                                    break;
+
+                                case "neg":
+                                    if (axes[i] > -action.deadzone) return;
+                                    break;
+
+                                case "any":
+                                    if ( (axes[i] > -action.deadzone) && (axes[i] < action.deadzone) ) either_failed++;
+                                    break;
+
+                                case "either":
+                                    if ( (axes[i] > -action.deadzone) && (axes[i] < action.deadzone) ) return;
+                                    break;
+
+                                case "deadzone":
+                                    if (!( (axes[i] > -action.deadzone) && (axes[i] < action.deadzone) )) return;
+                                    break;
+
+                                case "none":
+                                    // don't care
+                                    break;
+                            }
+                        }
+                        if (either_failed == 2) return;
+                    }
+
                     // call the callback
-                    func.func({
+                    var params = {
                         input_type: action.input_type, 
                         key_action: key_action, 
                         event: (action.input_type == "key") ?  event : null, 
                         gamepad: (action.input_type != "key") ? event : null,
                         expiry: func.expiry,
                         frequency: func.frequency
-                    });
+                    }
+
+                    if (action.input_type == "gamepad_axes")
+                    {
+                        params.axes = axes;
+                    }
+
+                    func.func(params)
 
                     // handle callback expiry
                     if (func.expiry > 0)
@@ -382,6 +487,9 @@ class Rebind
             this.connected_gamepads[gamepad.index] = gamepad;
             if (!(gamepad.index in this.gamepad_button_states)) this.gamepad_button_states[gamepad.index] = {}
             if (!(gamepad.index in this.last_gamepad_button_states)) this.last_gamepad_button_states[gamepad.index] = {}
+            if (!(gamepad.index in this.last_gamepad_axes)) this.last_gamepad_axes[gamepad.index] = [gamepad.axes[0], gamepad.axes[1], gamepad.axes[2], gamepad.axes[3]]
+
+            console.log(this.last_gamepad_axes)
 
             // iterate over each gamepad button
             for (var i = 0; i < gamepad.buttons.length; i++)

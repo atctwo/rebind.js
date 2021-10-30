@@ -21,6 +21,14 @@ rebind.bind( "none-z", ["z"], {none: true})
 rebind.bind("move-left", ["gp-b14"])
 rebind.bind("move-right", ["gp-b15"])
 
+// for gamepad input and continuous keyboard input to work, you need to call rebind.update() every frame
+function update()
+{
+    rebind.update()
+    requestAnimationFrame(update)
+}
+requestAnimationFrame(update)
+
 // these are examples that are called by the buttons on example.html
 // they are supposed to show dynamic rebinding
 function bind_to_thing(char)
@@ -99,11 +107,19 @@ function register_expiry()
     })
 }
 
-// for gamepad input and continuous keyboard input to work, you need to call rebind.update() every frame
-function update()
-{
-    rebind.update()
-    requestAnimationFrame(update)
-}
-requestAnimationFrame(update)
+// bind axes
+rebind.bind("axes-test", ["gp-a-right"]);
+rebind.bind("move-left", ["gp-a-left"], {
+    condition_x: "neg",
+    condition_y: "none"
+})
+rebind.bind("move-right", ["gp-a-left"], {
+    condition_x: "pos",
+    condition_y: "none"
+})
 
+rebind.on("axes-test", (params) => {
+    console.log(`right stick, x: ${params.axes[0]}, y: ${params.axes[1]}`)
+}, {
+    frequency: "change"
+});

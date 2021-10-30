@@ -108,7 +108,47 @@ rebind.bind("something", ["Enter", "gp-b1"]);
 
 ### Binding to Gamepad Control Sticks (axes)
 
-todo: how to bind to gamepad axes
+You can bind actions to gamepad axes by using the inputs `"gp-a-left"` and `"gp-a-right"`.  For example:
+
+```js
+rebind.bind("move-left", ["gp-a-left"], {
+    condition_x: "neg",
+    condition_y: "none"
+})
+rebind.bind("move-right", ["gp-a-left"], {
+    condition_x: "pos",
+    condition_y: "none"
+})
+```
+
+The `condition_x` and `condition_y` specify where you want each axis to be for any registered callback to be called.  The table below shows each possible value for both settings (both `condition_x` and `condition_y` can have any of the values below).
+
+| Condition     | Description
+|---------------|
+| `"pos"`       | the axis must be greater than the deadzone
+| `"neg"`       | the axis must be less than -(the deadzone)
+| `"any"`       | the axis must be outside the deadzone in any direction (except if the other axis' condition is met)
+| `"either"`    | the axis must be outside the deadzone in any direction
+| `"deadzone"`  | the axis must be within the deadzone (opposite of `"either"`)
+| `"none"`      | don't care, this axis is just ignored
+
+The default value is `"any"`.
+
+Most values depend on a setting called `"deadzone"`, which specifies a region of the sticks' possible movement where input isn't registered.  The next two paragraphs contain a description of what deadzone is, so you can skip them if you already know what it is.
+
+Normally a gamepad axis reads as 0 when at rest, and something greater than 0 when tilted.  If we tilt it in the other direction, we'll get a reading of the same magnitude, but of opposite sign.  For example, it might be +1 when tilted all the way to the right, -1 when tilted all the way to the left, and 0 when at rest.
+
+Sometimes, axes don't read exactly zero at rest, for example they might read 0.003.  To get around this, we use a deadzone, where we say "any input that between -deadzone and +deadzone is ignored".  This way, tiny offsets in rest values don't register as an input, and any movement by a user will bring the axis value out of the deadzone, which will register as an input.
+
+The JavaScript API specifies that gamepad axes will range from 0 at rest, to -1 or +1 at the extreme end.  The default deadzone used by rebind.js is 0.1, but this can be overridden by specifying the `"deadzone"` parameter:
+
+```js
+rebind.bind("something", ["gp-a-left"], {
+    condition_x: "neg",
+    condition_y: "none",
+    deadzone: 0.05
+})
+```
 
 ## Registering Callbacks to Actions
 
@@ -134,6 +174,7 @@ The parameter passed to the callback is an object with lots of parameters, which
 | `gamepad`             | if the action was caused by a gamepad, this will be the Gamepad that represents it, otherwise it will be null                     |
 | `expiry`              | if the callback has an expiry, this will be the number of calls the callback has left see [Callback Expiry](#expiry)              |
 | `frequency`           | how often the action is to be called (by default, this is "default")                                                              |
+| `axes`                | if the action was caused by a gamepad axis, this attribute will be an array of axis values (index 0 is the x axis, index 1 is the y axis) |
 
 ### <a name="expiry"></a>Callback Expiry
 
@@ -165,25 +206,27 @@ rebind.on("something", (params) => {
 
 The table below shows the possible frequencies for callbacks, how often they will be called when caused by a keyboard input, and how often they will be called when caused by a gamepad input.
 
-| frequency name    | keyboard frequency                                                                | gamepad frequency                                                         |
-|-------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------------|
-| `"continuous"`    | every time `update()` is called (`key_action` == pressed), and on release         | every time `update()` is called (`key_action` == pressed), and on release |
-| `"change"`        | when the key is pressed or released                                               | when the button is pressed or released                                    |
-| `"repeat"`        | when the key is pressed, released, or repeats (based on OS key repeat settings)   | same as `"change"`                                                        |
-| anything else     | same as `"repeat"`                                                                | same as `"change"`                                                        |
+| frequency name    | keyboard frequency                                                                | gamepad button frequency                                                  | gamepad axes frequency                                                    |
+|-------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| `"continuous"`    | every time `update()` is called (`key_action` == pressed), and on release         | every time `update()` is called (`key_action` == pressed), and on release | every time `update()` is called (`key_action` == pressed), and on release |
+| `"change"`        | when the key is pressed or released                                               | when the button is pressed or released                                    | when the value of either x or y axis changes                              |
+| `"repeat"`        | when the key is pressed, released, or repeats (based on OS key repeat settings)   | same as `"change"`                                                        | same as `"continuous"`                                                    |
+| anything else     | same as `"repeat"`                                                                | same as `"change"`                                                        | same as `"continuous"`                                                    |
 
 Here's more detail about what each frequency does:
 
 - `"continuous"`
-    - when the key or button is held down, the callback will be called (with `key_action` == "pressed") every time `rebind.update()` is called.
-    - when the key or button is released, the callback will be called with `key_action` == "released" once
+    - when the key or button is held down, or axis conditions are met, the callback will be called (with `key_action` == "pressed") every time `rebind.update()` is called.
+    - when the key or button is released, or axis is returned to rest, the callback will be called with `key_action` == "released" once
 - `"change"`
     - the callback will be called once when the key / button is pressed, and once when the key / button is released
+    - if the action is caused by gamepad axes, the callback will be called when the value of either x or y axis changes with `key_action` == "pressed", and once when the axes return to rest (with `key_action` == "released)
 - `"repeat"`
     - if the action was caused by a keyboard key, the callback will be called once on keypress, then will be called repeatedly at the key repeat rate set up by the OS (with `key_action` == "pressed").  when the key is released, the callback will be called once with `key_action` == "released".
     - if the action was caused by a gamepad input, the frequency will be the same as if it were `"change"`
+    - if the action was caused by gamepad axes, the frequency will be the same as if it were `"continuous"`
 - anything else (by default, frequency is `"default"`)
-    - the frequency will be the same as if it were set to `"repeat"` (hence it will act like `"change"` for gamepad inputs)
+    - the frequency will be the same as if it were set to `"repeat"` (hence it will act like `"change"` for gamepad inputs, and `"continuous"` for gamepad axes)
 
 ## Unbinding keys
 
