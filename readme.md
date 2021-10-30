@@ -123,14 +123,14 @@ rebind.bind("move-right", ["gp-a-left"], {
 
 The `condition_x` and `condition_y` specify where you want each axis to be for any registered callback to be called.  The table below shows each possible value for both settings (both `condition_x` and `condition_y` can have any of the values below).
 
-| Condition     | Description
-|---------------|
-| `"pos"`       | the axis must be greater than the deadzone
-| `"neg"`       | the axis must be less than -(the deadzone)
-| `"any"`       | the axis must be outside the deadzone in any direction (except if the other axis' condition is met)
-| `"either"`    | the axis must be outside the deadzone in any direction
-| `"deadzone"`  | the axis must be within the deadzone (opposite of `"either"`)
-| `"none"`      | don't care, this axis is just ignored
+| Condition     | Description                                                                                           |
+|---------------|-------------------------------------------------------------------------------------------------------|
+| `"pos"`       | the axis must be greater than the deadzone                                                            |
+| `"neg"`       | the axis must be less than -(the deadzone)                                                            |
+| `"any"`       | the axis must be outside the deadzone in any direction (except if the other axis' condition is met)   |
+| `"either"`    | the axis must be outside the deadzone in any direction                                                |
+| `"deadzone"`  | the axis must be within the deadzone (opposite of `"either"`)                                         |
+| `"none"`      | don't care, this axis is just ignored                                                                 |
 
 The default value is `"any"`.
 
