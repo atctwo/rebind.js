@@ -234,12 +234,13 @@ class Rebind
                 this.#process_actions("gp-a-left",  "pressed", gamepad, "continuous", [gamepad.axes[0], gamepad.axes[1]])
                 this.#process_actions("gp-a-right", "pressed", gamepad, "continuous", [gamepad.axes[2], gamepad.axes[3]])
 
-                if (gamepad.axes[0] != this.last_gamepad_axes[0] || gamepad.axes[1] != this.last_gamepad_axes[1]) 
+                if (!(gamepad.index in this.last_gamepad_axes)) this.last_gamepad_axes[gamepad.index] = []
+                if (gamepad.axes[0] != this.last_gamepad_axes[gamepad.index][0] || gamepad.axes[1] != this.last_gamepad_axes[gamepad.index][1]) 
                 {
                     this.#process_actions("gp-a-left",  "pressed", gamepad, "change", [gamepad.axes[0], gamepad.axes[1]])
                     this.#process_actions("gp-a-left",  "pressed", gamepad, "change", [gamepad.axes[0], gamepad.axes[1]], true)
-                    this.last_gamepad_axes[0] = gamepad.axes[0];
-                    this.last_gamepad_axes[1] = gamepad.axes[1];
+                    this.last_gamepad_axes[gamepad.index][0] = gamepad.axes[0];
+                    this.last_gamepad_axes[gamepad.index][1] = gamepad.axes[1];
 
                     if ( (gamepad.axes[0] < this.release_deadzone && gamepad.axes[0] > -this.release_deadzone) &&
                          (gamepad.axes[1] < this.release_deadzone && gamepad.axes[1] > -this.release_deadzone) ) 
@@ -251,12 +252,12 @@ class Rebind
                     }
                 }
 
-                if (gamepad.axes[2] != this.last_gamepad_axes[2] || gamepad.axes[3] != this.last_gamepad_axes[3]) 
+                if (gamepad.axes[2] != this.last_gamepad_axes[gamepad.index][2] || gamepad.axes[3] != this.last_gamepad_axes[gamepad.index][3]) 
                 {
                     this.#process_actions("gp-a-right", "pressed", gamepad, "change", [gamepad.axes[2], gamepad.axes[3]])
                     this.#process_actions("gp-a-right", "pressed", gamepad, "change", [gamepad.axes[2], gamepad.axes[3]], true)
-                    this.last_gamepad_axes[2] = gamepad.axes[2];
-                    this.last_gamepad_axes[3] = gamepad.axes[3];
+                    this.last_gamepad_axes[gamepad.index][2] = gamepad.axes[2];
+                    this.last_gamepad_axes[gamepad.index][3] = gamepad.axes[3];
 
                     if ( (gamepad.axes[2] < this.release_deadzone && gamepad.axes[2] > -this.release_deadzone) &&
                          (gamepad.axes[3] < this.release_deadzone && gamepad.axes[3] > -this.release_deadzone) ) 
