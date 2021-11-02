@@ -7,6 +7,7 @@ rebind = new Rebind()
 rebind.bind("move-left", ["a", "ArrowLeft", "Left"])
 rebind.bind("move-right", ["d", "ArrowRight", "Right"])
 rebind.bind("print-params", ["p", "gp-b3"])
+rebind.bind("frequency-test", ["o", "gp-b0"])
 
 // a settings object can be passed which defines what modifier keys need to
 // be pressed for the action to occur.  you can require ctrl, shift, or
@@ -70,6 +71,12 @@ rebind.on("move-right", (params) => {console.log("Move right", params.key_action
 rebind.on("thing", (params) => {if (params.key_action == "pressed") console.log("Thing Function 1")})
 rebind.on("thing", (params) => {if (params.key_action == "pressed") console.log("Thing Function 2")})
 
+rebind.on("frequency-test", (params) => {
+    console.log(`frequency test - ${params.input_type} -  ${params.key_action} - ${params.frequency}`)
+}, {
+    frequency: "continuous"
+})
+
 rebind.on("print-params", (params) => {
     console.log(params)
 })
@@ -78,8 +85,8 @@ rebind.on("z", (params) => {if (params.key_action == "pressed") console.log("Z p
 rebind.on("ctrl-z", (params) => {if (params.key_action == "pressed") console.log("Ctrl+Z pressed")})
 rebind.on("none-z", (params) => {if (params.key_action == "pressed") console.log("Just Z pressed")})
 
-rebind.on("any-button", (params) => {if (params.key_action == "pressed") console.log("Any button pressed")})
-rebind.on("any-ctrl", (params) => {if (params.key_action == "pressed") console.log("Any button + ctrl pressed")})
+rebind.on("any-button", (params) => {console.log("Any button", params.key_action)})
+rebind.on("any-ctrl", (params) => {console.log("Any button + ctrl", params.key_action)})
 
 // remove any keybindings bound to an action
 // rebind.clear("move-right")
@@ -123,3 +130,29 @@ rebind.on("axes-test", (params) => {
 }, {
     frequency: "change"
 });
+
+// virtual gamepads, using https://github.com/alvaromontoro/gamepad-simulator
+
+function new_gamepad()
+{
+    var gamepad = gamepadSimulator.create()
+    gamepadSimulator.connect()
+    console.log(gamepad)
+}
+
+function destroy_gamepad()
+{
+    gamepadSimulator.disconnect()
+    gamepadSimulator.destroy()
+}
+
+// way to get what key or button a user pressed, using a one-off callback
+rebind.bind("get-key", ["any"])
+function get_pressed_key()
+{
+    rebind.on("get-key", function(params) {
+        if (params.key_action == "pressed") alert(`${params.input_name} was pressed!`)
+    }, {
+        expiry: 1
+    });
+}

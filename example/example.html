@@ -6,14 +6,27 @@
     <title>rebind.js demo</title>
     <meta name='viewport' content='width=device-width, initial-scale=1'>
     <!-- <link rel='stylesheet' type='text/css' media='screen' href='main.css'> -->
+    <script src='../gamepad.min.js'></script>
     <script src='../rebind.js'></script>
     <script src='example.js'></script>
 </head>
+
+<style>
+
+    #amdfc-controller
+    {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 80px;
+    }
+
+</style>
+
 <body>
     <h1>rebind.js example</h1>
 
     <p>Open DevTools to look at the console log<br>See example.js to see what each Rebind.js method does</p>
-
     <table>
         <tr>
             <td>
@@ -51,6 +64,11 @@
     <button onclick="disable_any()">Disable Any Button</button>
     <span>when enabled, press literally any key</span><br>
     <button onclick="register_expiry()">Register Expiry Callback</button>
-    <span>bound to the 'e' key by default</span>
+    <span>bound to the 'e' key by default</span><br>
+    <button onclick="get_pressed_key()">Get User Key Press</button>
+    <span>after pressing this, when the user inputs anything, a message will be shown with the input that was pressed</span><br>
+    <button onclick="new_gamepad();">Create + Connect Virtual Gamepad</button>
+    <button onclick="destroy_gamepad();">Destroy Virtual Gamepad</button>
+    <span>uses <a href="https://github.com/alvaromontoro/gamepad-simulator">gamepad-simulator by alvaromontoro</a></span>
 </body>
 </html>

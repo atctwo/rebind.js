@@ -78,6 +78,8 @@ The first argument is the name of the action as a string (it can be literally an
 - a gamepad button
 - a gamepad control stick
 
+You can also bind actions to a virtual input called `any`, which will occur whenever any key or gamepad button is pressed or released, or axis is changed.  `any` actions won't occur with continuous gamepad axes input (only on change) to prevent any callbacks being spamed.
+
 ### Binding Keys to keyboard keys
 
 You can bind actions to anything that KeyboardEvent.key can be ([here's a list from MDN](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values)).  Optionally, you can pass a settings object as a third argument to specify any modifier keys that need to be pressed:
@@ -89,8 +91,6 @@ rebind.bind("move-left-faster", ["a", "ArrowLeft", "Left"], {
 ```
 
 The settings object can have `ctrl`, `shift`, `alt`, or `none` as keys, and each of them are false by default.  Any that are set to true must be pressed as part of the input to make the action occur.  If `none` is set to true, there have to be no modifier keys pressed in order to make the action occur.  If `none` is false, and no other modifier key settings are true, the action will occur no matter what modifier keys are pressed.
-
-You can also bind actions to a virtual key called `any`, which will occur whenever any key or gamepad button is pressed or released.
 
 ```js
 rebind.bind("any-button", ["any"])

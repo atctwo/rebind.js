@@ -81,7 +81,8 @@ class Rebind
 
                 // determine input type
                 var input_type = "key";
-                if (input.startsWith("gp-b")) input_type = "gamepad_button";
+                if (input === "any") input_type = "any";
+                else if (input.startsWith("gp-b")) input_type = "gamepad_button";
                 else if (input.startsWith("gp-a")) input_type = "gamepad_axes";
                 
                 // add the action to the keydown thing
@@ -193,13 +194,18 @@ class Rebind
         // poll gamepad
 
         var gamepads = navigator.getGamepads();
-        for (var gamepad of gamepads) // for each connected gamepad
+        const num_gamepads = Object.keys(gamepads).length
+
+        for (var g = 0; g < num_gamepads; g++) // for each connected gamepad
         {
+            const gamepad = gamepads[g];
+
             // the list returned by navigator.getGamepads() can contain null values.
             // this checks if the list element is null, or if it's an actual gamepad
             if (gamepad)
             {
                 // iterate over each gamepad button
+                var any_pressed = false;
                 for (var i = 0; i < gamepad.buttons.length; i++)
                 {
                     // determine the input name based on the button id
@@ -216,6 +222,12 @@ class Rebind
                         this.#process_actions(input, "pressed", gamepad, "continuous")
                     }
 
+                    // handle "any" action
+                    if (btn.pressed)
+                    {
+                        if ("any" in this.keydown_actions) this.#process_actions(input, "pressed", gamepad, "continuous", [], true)
+                    }
+
                 }
 
                 // process gamepad axes
@@ -225,6 +237,7 @@ class Rebind
                 if (gamepad.axes[0] != this.last_gamepad_axes[0] || gamepad.axes[1] != this.last_gamepad_axes[1]) 
                 {
                     this.#process_actions("gp-a-left",  "pressed", gamepad, "change", [gamepad.axes[0], gamepad.axes[1]])
+                    this.#process_actions("gp-a-left",  "pressed", gamepad, "change", [gamepad.axes[0], gamepad.axes[1]], true)
                     this.last_gamepad_axes[0] = gamepad.axes[0];
                     this.last_gamepad_axes[1] = gamepad.axes[1];
 
@@ -233,12 +246,15 @@ class Rebind
                     {
                         this.#process_actions("gp-a-left",  "released", gamepad, "change", [gamepad.axes[0], gamepad.axes[1]])
                         this.#process_actions("gp-a-left",  "released", gamepad, "continuous", [gamepad.axes[0], gamepad.axes[1]])
+                        this.#process_actions("gp-a-left",  "released", gamepad, "change", [gamepad.axes[0], gamepad.axes[1]], true)
+                        this.#process_actions("gp-a-left",  "released", gamepad, "continuous", [gamepad.axes[0], gamepad.axes[1]], true)
                     }
                 }
 
                 if (gamepad.axes[2] != this.last_gamepad_axes[2] || gamepad.axes[3] != this.last_gamepad_axes[3]) 
                 {
                     this.#process_actions("gp-a-right", "pressed", gamepad, "change", [gamepad.axes[2], gamepad.axes[3]])
+                    this.#process_actions("gp-a-right", "pressed", gamepad, "change", [gamepad.axes[2], gamepad.axes[3]], true)
                     this.last_gamepad_axes[2] = gamepad.axes[2];
                     this.last_gamepad_axes[3] = gamepad.axes[3];
 
@@ -247,6 +263,8 @@ class Rebind
                     {
                         this.#process_actions("gp-a-right",  "released", gamepad, "change", [gamepad.axes[2], gamepad.axes[3]])
                         this.#process_actions("gp-a-right",  "released", gamepad, "continuous", [gamepad.axes[2], gamepad.axes[3]])
+                        this.#process_actions("gp-a-right",  "released", gamepad, "change", [gamepad.axes[2], gamepad.axes[3]], true)
+                        this.#process_actions("gp-a-right",  "released", gamepad, "continuous", [gamepad.axes[2], gamepad.axes[3]], true)
                     }
                 }
             }
@@ -269,6 +287,7 @@ class Rebind
                     // process the action
                     var input = "gp-b" + btn.toString();
                     this.#process_actions(input, pressed ? "pressed" : "released", gamepads[index], "change")
+                    this.#process_actions(input, pressed ? "pressed" : "released", gamepads[index], "change", [], true)
 
                     // if the button is released, process an action as if it were a continuous one
                     // (because the continuous button code doesn't detect button releases)
@@ -284,6 +303,7 @@ class Rebind
         for (const [key, state] of Object.entries(this.key_states))
         {
             if (state.state == "pressed") this.#process_actions(key, "pressed", state.event, "continuous")
+            if (state.state == "pressed") this.#process_actions(input, "pressed", state.event, "continuous", [], true)
         }
     }
 
@@ -305,16 +325,17 @@ class Rebind
      * @param {string} key_action whether the key / button was "pressed" or "released"
      * @param {KeyboardEvent|Gamepad} event if the action was caused by a key, this should be the KeyboardEvent that caused it.  if the action was caused by a gamepad, this should be the Gamepad object for the gamepad that caused it
      * @param {string} context where the method was called from (specifically how often this method is called from the place)
+     * @param {boolean} any whether the call to this method was caused by any key
      */
-    #process_actions(input, key_action, event, context, axes=[])
+    #process_actions(input, key_action, event, context, axes=[], any=false)
     {
-        var actions = this.keydown_actions[input];
+        var actions = this.keydown_actions[any ? "any" : input];
         if (actions)
         {
             actions.forEach((action => {
                 
                 // check the action conditions
-                if (action.input_type === "key")
+                if (action.input_type === "key" || action.input_type == "any")
                 {
                     if (action.ctrl && !event.ctrlKey) return;
                     if (action.alt && !event.altKey) return;
@@ -333,6 +354,7 @@ class Rebind
                     {
                         if (action.input_type == "gamepad_axes" && context != "continuous") return;
                         if (action.input_type == "gamepad_button" && context != "change") return;
+                        if (action.input_type == "any" && context != "change") return;
                         if (action.input_type == "key" && context != "repeat") return; 
                     }
                     else
@@ -342,7 +364,7 @@ class Rebind
                         {
                             
                             // if the action is caused by a gamepad input, and the context isn't a button state change
-                            if (action.input_type == "gamepad_button") 
+                            if (action.input_type == "gamepad_button" || action.input_type == "any") 
                             {
                                 if (context != "change") return;
                             }
@@ -401,6 +423,7 @@ class Rebind
 
                     // call the callback
                     var params = {
+                        input_name: input,
                         input_type: action.input_type, 
                         key_action: key_action, 
                         event: (action.input_type == "key") ?  event : null, 
@@ -451,10 +474,15 @@ class Rebind
         {
             // process change callbacks
             this.#process_actions(event.key, key_action, event, "change")
+            this.#process_actions(event.key, key_action, event, "change", [], true)
 
             // if the key was released, process continuous callbacks
             // (the code for polling key states for continuous callbacks can't see key releases)
-            if (key_action == "released") this.#process_actions(event.key, key_action, event, "continuous")
+            if (key_action == "released")
+            {
+                this.#process_actions(event.key, key_action, event, "continuous")
+                this.#process_actions(event.key, key_action, event, "continuous", [], true)
+            }
         }
 
         // store the key state
@@ -467,7 +495,7 @@ class Rebind
         if (event.key in this.keydown_actions) this.#process_actions(event.key, key_action, event, "repeat")
 
         // handle 'any' key
-        if ("any" in this.keydown_actions) this.#process_actions("any", key_action, event, "repeat")
+        if ("any" in this.keydown_actions) this.#process_actions(event.key, key_action, event, "repeat", [], true)
     }
 
     /**
